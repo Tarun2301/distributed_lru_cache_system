@@ -1,47 +1,72 @@
 #pragma once
 #include "lru_cache.h"
 #include "consistent_hash.h"
-#include <map>
-#include <unordered_map>
-#include <unordered_set>
 #include <string>
+#include <unordered_map>
 #include <vector>
-#include <functional>
-#include <cstdint>
+#include <chrono>
+#include <random>
 
 
-struct NodeInfo {
-    std::string              name;
-    std::string              color;
-    std::unordered_set<std::string> keys;  
+struct GetResult {
+    bool        hit;
+    std::string value;
+    std::string node;
 };
 
-class ConsistentHash {
+struct SetResult {
+    std::string node;
+    std::string evicted;   
+};
+
+struct BenchmarkResult {
+    int    ops;
+    double durationMs;
+    double opsPerMs;
+    int    hits;
+    int    misses;
+    double hitRate;       
+    int    evictions;
+    double avgLatencyUs;
+};
+
+
+class DistCache {
 public:
-    explicit ConsistentHash(int vnodes = 40);
+    explicit DistCache(int cacheCapPerNode = 6, int vnodes = 40);
 
-    void addNode(const std::string& name, const std::string& color);
-
+    void addNode(const std::string& name, const std::string& color = "#178AD4");
     void removeNode(const std::string& name);
+    int  nodeCount() const;
 
-    std::string lookup(const std::string& key) const;
+    GetResult get(const std::string& key);
+    SetResult set(const std::string& key, const std::string& value);
+    bool      del(const std::string& key);
+    void      flush();
 
-    std::string assignKey(const std::string& key);
+    void setCapacity(int cap);
+    int  capacity() const { return capPerNode_; }
 
-    int nodeCount() const { return (int)nodes_.size(); }
+    int    totalHits()      const { return hits_; }
+    int    totalMisses()    const { return misses_; }
+    int    totalEvictions() const { return evictions_; }
+    double hitRate()        const;
 
-    const std::unordered_map<std::string, NodeInfo>& nodes() const { return nodes_; }
-    NodeInfo& nodeInfo(const std::string& name) { return nodes_.at(name); }
+    BenchmarkResult benchmark(int ops, int keyspace = 60, double zipfSkew = 0.5);
 
-    int ringSize() const { return (int)ring_.size(); }
-
-    const std::map<uint32_t, std::string>& ring() const { return ring_; }
+    const ConsistentHash& ring()   const { return ring_; }
+    LRUCache&             cache(const std::string& nodeName) { return *caches_.at(nodeName); }
 
 private:
-    uint32_t fnv1a(const std::string& s) const;
-    void     rebalance();
+    double zipfSample(int n, double s);
 
-    int vnodes_;
-    std::map<uint32_t, std::string>          ring_;   
-    std::unordered_map<std::string, NodeInfo> nodes_;
+    int              capPerNode_;
+    ConsistentHash   ring_;
+    std::unordered_map<std::string, LRUCache*> caches_;
+
+    int hits_      = 0;
+    int misses_    = 0;
+    int evictions_ = 0;
+
+    std::mt19937 rng_{ std::random_device{}() };
 };
