@@ -1,5 +1,6 @@
 #pragma once
 #include "lru_cache.h"
+#include "consistent_hash.h"
 #include <map>
 #include <unordered_map>
 #include <unordered_set>
