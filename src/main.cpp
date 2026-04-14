@@ -33,6 +33,90 @@ static const std::string BLUE   = "\033[36m";
 static const std::string BOLD   = "\033[1m";
 static const std::string DIM    = "\033[2m";
 
+void printHelp() {
+    std::cout << "\n" << BOLD << "  DistCache CLI — commands\n" << RESET;
+    std::cout << DIM  << "  ─────────────────────────────────────────────\n" << RESET;
+    auto row = [](const char* cmd, const char* desc) {
+        std::cout << "  " << BOLD << std::left << std::setw(24) << cmd << RESET
+                  << DIM  << desc << RESET << "\n";
+    };
+    row("set <key> <value>",  "store or update a key");
+    row("get <key>",          "retrieve a value (HIT / MISS)");
+    row("del <key>",          "delete a key");
+    row("flush",              "clear all caches");
+    row("stats",              "hit / miss / eviction summary");
+    row("nodes",              "list nodes and key counts");
+    row("lru [node]",         "show LRU order for a node");
+    row("add <name>",         "add a new cache node");
+    row("remove <name>",      "remove a cache node");
+    row("cap <n>",            "resize per-node capacity");
+    row("bench [ops [skew]]", "run benchmark (default: 2000 ops, 0.5 skew)");
+    row("demo",               "insert sample data");
+    row("help",               "show this message");
+    row("quit / exit",        "exit");
+    std::cout << "\n";
+}
+
+void printStats(const DistCache& dc) {
+    int total = dc.totalHits() + dc.totalMisses();
+    double hr  = dc.hitRate() * 100.0;
+    std::cout << BLUE << "\n  [stats]\n" << RESET;
+    std::cout << "  hits      : " << GREEN  << dc.totalHits()      << RESET << "\n";
+    std::cout << "  misses    : " << YELLOW << dc.totalMisses()    << RESET << "\n";
+    std::cout << "  hit rate  : " << BOLD   << std::fixed << std::setprecision(1) << hr << "%" << RESET << "\n";
+    std::cout << "  evictions : " << RED    << dc.totalEvictions() << RESET << "\n";
+    std::cout << "  total ops : " << total  << "\n\n";
+}
+
+void printNodes(const DistCache& dc) {
+    std::cout << BLUE << "\n  [nodes]\n" << RESET;
+    for (const auto& [name, info] : dc.ring().nodes()) {
+        std::cout << "  " << BOLD << std::left << std::setw(12) << name << RESET
+                  << "  keys=" << std::setw(4) << info.keys.size()
+                  << "  vnodes=" << 40 << "\n";
+    }
+    std::cout << "\n";
+}
+
+void printLRU(DistCache& dc, const std::string& nodeName) {
+    try {
+        auto& cache = dc.cache(nodeName);
+        auto  items = cache.toVector();
+        std::cout << BLUE << "\n  [lru: " << nodeName << "]  "
+                  << items.size() << "/" << cache.capacity() << "\n" << RESET;
+        for (int i = 0; i < (int)items.size(); ++i) {
+            std::string tag = (i == 0) ? "MRU" : (i == (int)items.size()-1 ? "LRU" : "   ");
+            std::cout << "  " << DIM << tag << "  " << RESET
+                      << BOLD << std::left << std::setw(20) << items[i].first << RESET
+                      << "  " << items[i].second << "\n";
+        }
+        if (items.empty()) std::cout << "  (empty)\n";
+        std::cout << "\n";
+    } catch (...) {
+        std::cout << RED << "  node not found: " << nodeName << RESET << "\n\n";
+    }
+}
+
+void runDemo(DistCache& dc) {
+    std::vector<std::pair<std::string,std::string>> data = {
+        {"user:1","alice"},    {"user:2","bob"},       {"user:3","charlie"},
+        {"user:4","diana"},    {"sess:tok1","active"}, {"sess:tok2","expired"},
+        {"product:101","Widget A"}, {"product:102","Widget B"},
+        {"config:ttl","3600"}, {"config:env","production"},
+        {"user:1","alice_v2"},{"product:101","Widget A"},
+        {"user:5","eve"},      {"sess:tok3","active"}, {"cache:warmup","done"},
+        {"user:2","bob"},
+    };
+    for (const auto& [k, v] : data) {
+        auto r = dc.set(k, v);
+        std::cout << DIM << "  set " << std::left << std::setw(20) << k
+                  << "→ " << r.node;
+        if (!r.evicted.empty())
+            std::cout << RED << "  [evicted: " << r.evicted << "]" << RESET;
+        std::cout << RESET << "\n";
+    }
+    std::cout << GREEN << "\n  demo done — try: get user:1 | stats\n\n" << RESET;
+}
 
 
 int main() {
