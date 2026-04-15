@@ -34,8 +34,8 @@ static const std::string BOLD   = "\033[1m";
 static const std::string DIM    = "\033[2m";
 
 void printHelp() {
-    std::cout << "\n" << BOLD << "  DistCache CLI — commands\n" << RESET;
-    std::cout << DIM  << "  ─────────────────────────────────────────────\n" << RESET;
+    std::cout << "\n" << BOLD << "  DistCache CLI - commands\n" << RESET;
+    std::cout << DIM  << "\n" << RESET;
     auto row = [](const char* cmd, const char* desc) {
         std::cout << "  " << BOLD << std::left << std::setw(24) << cmd << RESET
                   << DIM  << desc << RESET << "\n";
@@ -107,20 +107,26 @@ void runDemo(DistCache& dc) {
         {"user:5","eve"},      {"sess:tok3","active"}, {"cache:warmup","done"},
         {"user:2","bob"},
     };
+
     for (const auto& [k, v] : data) {
         auto r = dc.set(k, v);
-        std::cout << DIM << "  set " << std::left << std::setw(20) << k
-                  << "→ " << r.node;
+
+        std::cout << DIM << "  set "
+                  << std::left << std::setw(20) << k
+                  << std::setw(15) << v
+                  << " -> " << r.node;
+
         if (!r.evicted.empty())
             std::cout << RED << "  [evicted: " << r.evicted << "]" << RESET;
+
         std::cout << RESET << "\n";
     }
-    std::cout << GREEN << "\n  demo done — try: get user:1 | stats\n\n" << RESET;
+
+    std::cout << GREEN << "\n  demo done - try: get user:1 | stats\n\n" << RESET;
 }
 
-
 int main() {
-    std::cout << BOLD << "\n  DistCache v1.0 — Distributed LRU Cache with Consistent Hashing\n" << RESET;
+    std::cout << BOLD << "\n  DistCache v1.0 - Distributed LRU Cache with Consistent Hashing\n" << RESET;
     std::cout << DIM  << "  Type 'help' for commands.\n\n" << RESET;
 
     DistCache dc(6, 40);
@@ -148,7 +154,7 @@ int main() {
             for (size_t i = 3; i < tokens.size(); ++i) val += " " + tokens[i];
             auto r = dc.set(key, val);
             if (r.node.empty()) { std::cout << RED << "  ERR: no nodes available\n\n" << RESET; continue; }
-            std::cout << GREEN << "  OK" << RESET << "  → " << r.node;
+            std::cout << GREEN << "  OK" << RESET << "  -> " << r.node;
             if (!r.evicted.empty())
                 std::cout << RED << "  [evicted: " << r.evicted << "]" << RESET;
             std::cout << "\n\n";
@@ -222,7 +228,7 @@ int main() {
             auto r = dc.benchmark(ops, 60, skew);
             std::cout << GREEN << "  ops/ms     : " << RESET << std::fixed << std::setprecision(2) << r.opsPerMs     << "\n";
             std::cout << GREEN << "  hit rate   : " << RESET << std::setprecision(1) << r.hitRate * 100 << "%\n";
-            std::cout << GREEN << "  avg lat μs : " << RESET << std::setprecision(3) << r.avgLatencyUs   << "\n";
+            std::cout << GREEN << "  avg lat us : " << RESET << std::setprecision(3) << r.avgLatencyUs   << "\n";
             std::cout << YELLOW<< "  evictions  : " << RESET << r.evictions << "\n\n";
         }
 
@@ -236,7 +242,7 @@ int main() {
         }
 
         else {
-            std::cout << RED << "  unknown command — type 'help'\n\n" << RESET;
+            std::cout << RED << "  unknown command - type 'help'\n\n" << RESET;
         }
     }
     return 0;

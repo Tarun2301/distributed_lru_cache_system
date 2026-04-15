@@ -14,7 +14,7 @@ LRUCache::LRUCache(int capacity)
     tail_ = new LRUNode("__TAIL__", "");
     head_->next = tail_;
     tail_->prev = head_;
-}
+} 
 
 LRUCache::~LRUCache() {
     flush();

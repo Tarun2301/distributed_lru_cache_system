@@ -2,12 +2,10 @@
 #include <cmath>
 #include <stdexcept>
 
-// ─── Constructor / Destructor ────────────────────────────────────────────────
 
 DistCache::DistCache(int capPerNode, int vnodes)
     : capPerNode_(capPerNode), ring_(vnodes) {}
 
-// ─── Node management ─────────────────────────────────────────────────────────
 
 void DistCache::addNode(const std::string& name, const std::string& color) {
     if (caches_.count(name))
@@ -25,7 +23,6 @@ void DistCache::removeNode(const std::string& name) {
 
 int DistCache::nodeCount() const { return (int)caches_.size(); }
 
-// ─── Cache operations ────────────────────────────────────────────────────────
 
 GetResult DistCache::get(const std::string& key) {
     std::string nodeName = ring_.lookup(key);
@@ -76,10 +73,6 @@ double DistCache::hitRate() const {
     return total > 0 ? (double)hits_ / total : 0.0;
 }
 
-// ─── Zipf sampling ───────────────────────────────────────────────────────────
-// Returns a rank in [1..n] with probability proportional to 1/rank^s.
-// s=0 → uniform; s=1 → classic Zipf (hot-key heavy).
-
 double DistCache::zipfSample(int n, double s) {
     if (s == 0.0) {
         std::uniform_int_distribution<int> dist(1, n);
@@ -98,10 +91,8 @@ double DistCache::zipfSample(int n, double s) {
     return n;
 }
 
-// ─── Benchmark ───────────────────────────────────────────────────────────────
 
 BenchmarkResult DistCache::benchmark(int ops, int keyspace, double zipfSkew) {
-    // Flush for a clean measurement
     flush();
 
     int    bHits = 0, bMisses = 0, bEvict = 0;
@@ -116,7 +107,6 @@ BenchmarkResult DistCache::benchmark(int ops, int keyspace, double zipfSkew) {
         auto lt0 = std::chrono::high_resolution_clock::now();
 
         if (coin(rng_) < 0.65) {
-            // Read-heavy: 65% get, 35% set
             auto r = get(key);
             if (r.hit) bHits++;
             else { bMisses++; set(key, "val-" + key); }
