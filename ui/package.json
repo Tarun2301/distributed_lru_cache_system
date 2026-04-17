@@ -1,0 +1,10 @@
+{
+  "name": "distcache-ui",
+  "version": "1.0.0",
+  "description": "Distributed LRU Cache Dashboard UI",
+  "scripts": {
+    "dev": "npx -y serve . -p 3000 --no-clipboard",
+    "start": "npx -y serve . -p 3000"
+  },
+  "private": true
+}

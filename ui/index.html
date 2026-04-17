@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DistCache v1.0 — Distributed LRU Cache Dashboard</title>
+  <meta name="description"
+    content="Interactive UI for the DistCache distributed LRU cache system with consistent hashing, node management, benchmarks and live statistics." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Inter:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+  Header
+  <header class="topbar">
+    <div class="topbar-left">
+      <div class="logo-mark">
+        <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+          <circle cx="14" cy="14" r="13" stroke="url(#lg1)" stroke-width="2" />
+          <circle cx="14" cy="14" r="7" fill="url(#lg2)" opacity="0.9" />
+          <defs>
+            <linearGradient id="lg1" x1="0" y1="0" x2="28" y2="28" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stop-color="#60a5fa" />
+              <stop offset="100%" stop-color="#a78bfa" />
+            </linearGradient>
+            <linearGradient id="lg2" x1="0" y1="0" x2="28" y2="28" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stop-color="#60a5fa" />
+              <stop offset="100%" stop-color="#a78bfa" />
+            </linearGradient>
+          </defs>
+        </svg>
+      </div>
+      <div>
+        <h1 class="app-title">DistCache <span class="version-badge">v1.0</span></h1>
+        <p class="app-sub">Distributed LRU Cache · Consistent Hashing</p>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <div class="status-pill" id="statusPill">
+        <span class="status-dot"></span>
+        <span id="statusText">3 nodes online</span>
+      </div>
+      <button class="btn btn-ghost" id="themeToggle" title="Toggle theme">🌙</button>
+    </div>
+  </header>
+
+  <div class="layout">
+
+    <aside class="sidebar">
+
+      <section class="panel" id="statsPanel">
+        <h2 class="panel-title">📊 Statistics</h2>
+        <div class="stat-grid">
+          <div class="stat-card green">
+            <span class="stat-label">Hits</span>
+            <span class="stat-val" id="statHits">0</span>
+          </div>
+          <div class="stat-card yellow">
+            <span class="stat-label">Misses</span>
+            <span class="stat-val" id="statMisses">0</span>
+          </div>
+          <div class="stat-card red">
+            <span class="stat-label">Evictions</span>
+            <span class="stat-val" id="statEvictions">0</span>
+          </div>
+          <div class="stat-card blue">
+            <span class="stat-label">Hit Rate</span>
+            <span class="stat-val" id="statHitRate">—</span>
+          </div>
+        </div>
+        <div class="hitrate-bar-wrap">
+          <div class="hitrate-bar-bg">
+            <div class="hitrate-bar-fill" id="hitRateBar"></div>
+          </div>
+          <span class="hitrate-label" id="hitRateLabel">0%</span>
+        </div>
+      </section>
+
+      <!-- Node List -->
+      <section class="panel" id="nodesPanel">
+        <div class="panel-header">
+          <h2 class="panel-title">🖧 Nodes</h2>
+          <span class="badge" id="nodeCountBadge">3</span>
+        </div>
+        <div id="nodeList" class="node-list"></div>
+        <div class="add-node-row">
+          <input type="text" id="addNodeInput" class="textinput" placeholder="node name…" />
+          <button class="btn btn-primary" id="addNodeBtn">Add</button>
+        </div>
+      </section>
+
+      <!-- Capacity -->
+      <section class="panel">
+        <h2 class="panel-title">⚙️ Capacity</h2>
+        <div class="cap-row">
+          <input type="number" id="capInput" class="textinput" value="6" min="1" max="999" style="width:80px" />
+          <span class="cap-unit">per node</span>
+          <button class="btn btn-secondary" id="capBtn">Set</button>
+        </div>
+      </section>
+
+      <!-- Virtual Nodes (Replicas) -->
+      <section class="panel">
+        <div class="panel-header">
+          <h2 class="panel-title">🔄 Virtual Nodes</h2>
+          <span class="badge" id="vnodeVal">40</span>
+        </div>
+        <div class="slider-container" style="margin-top:10px">
+          <input type="range" id="vnodeSlider" min="1" max="200" value="40" step="1" style="width:100%" />
+          <div style="display:flex;justify-content:space-between;font-size:.7rem;color:var(--txt3);margin-top:4px">
+            <span>1</span>
+            <span>200</span>
+          </div>
+        </div>
+        <button class="btn btn-secondary" id="vnodeBtn" style="width:100%;margin-top:8px">Apply Ring Change</button>
+      </section>
+
+    </aside>
+
+    <!-- ── CENTER: Main Area ── -->
+    <main class="main-area">
+
+      <!-- Tabs -->
+      <nav class="tab-bar">
+        <button class="tab active" data-tab="ops">Cache Ops</button>
+        <button class="tab" data-tab="ring">Ring View</button>
+        <button class="tab" data-tab="lru">LRU Viewer</button>
+        <button class="tab" data-tab="bench">Benchmark</button>
+      </nav>
+
+      <!-- ── Tab: Cache Operations ── -->
+      <div class="tab-content active" id="tab-ops">
+        <div class="ops-grid">
+
+          <!-- SET -->
+          <div class="op-card">
+            <div class="op-card-header">
+              <span class="op-badge set">SET</span>
+              <span class="op-desc">Store a key-value pair</span>
+            </div>
+            <div class="op-fields">
+              <input type="text" id="setKey" class="textinput" placeholder="key" />
+              <input type="text" id="setValue" class="textinput" placeholder="value" />
+            </div>
+            <button class="btn btn-set w-full" id="setBtn">Set Key</button>
+          </div>
+
+          <!-- GET -->
+          <div class="op-card">
+            <div class="op-card-header">
+              <span class="op-badge get">GET</span>
+              <span class="op-desc">Retrieve a value (HIT / MISS)</span>
+            </div>
+            <div class="op-fields">
+              <input type="text" id="getKey" class="textinput" placeholder="key" />
+            </div>
+            <button class="btn btn-get w-full" id="getBtn">Get Key</button>
+          </div>
+
+          <!-- DEL -->
+          <div class="op-card">
+            <div class="op-card-header">
+              <span class="op-badge del">DEL</span>
+              <span class="op-desc">Delete a key from cache</span>
+            </div>
+            <div class="op-fields">
+              <input type="text" id="delKey" class="textinput" placeholder="key" />
+            </div>
+            <button class="btn btn-del w-full" id="delBtn">Delete Key</button>
+          </div>
+
+          <!-- FLUSH -->
+          <div class="op-card">
+            <div class="op-card-header">
+              <span class="op-badge flush">FLUSH</span>
+              <span class="op-desc">Clear all caches &amp; reset stats</span>
+            </div>
+            <div class="op-fields flush-confirm">
+              <p>This will clear all keys from every node and reset statistics.</p>
+            </div>
+            <button class="btn btn-flush w-full" id="flushBtn">Flush All</button>
+          </div>
+
+          <!-- DEMO -->
+          <div class="op-card">
+            <div class="op-card-header">
+              <span class="op-badge demo">DEMO</span>
+              <span class="op-desc">Load sample data into cache</span>
+            </div>
+            <div class="op-fields flush-confirm">
+              <p>Inserts 16 sample key-value pairs (users, sessions, products, config).</p>
+            </div>
+            <button class="btn btn-demo w-full" id="demoBtn">Run Demo</button>
+          </div>
+
+        </div>
+
+        <!-- Result area -->
+        <div class="result-panel" id="opResult">
+          <div class="result-placeholder">← Run an operation to see the result here</div>
+        </div>
+
+        <!-- Key Explorer -->
+        <div class="panel mt-16" id="keyExplorerPanel">
+          <div class="panel-header">
+            <h2 class="panel-title">🗂 All Keys</h2>
+            <button class="btn btn-ghost btn-sm" id="refreshKeysBtn">↻ Refresh</button>
+          </div>
+          <div id="keyTable" class="key-table-wrap">
+            <div class="empty-state">No keys. Run a SET or DEMO first.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Tab: Ring View ── -->
+      <div class="tab-content" id="tab-ring">
+        <div class="ring-layout">
+          <div class="ring-canvas-wrap">
+            <canvas id="ringCanvas" width="460" height="460"></canvas>
+          </div>
+          <div class="ring-legend-wrap">
+            <h3 class="legend-title">Hash Ring</h3>
+            <p class="legend-desc">Consistent hashing ring with <strong>40 virtual nodes</strong> per physical node.
+              Keys are assigned clockwise to the nearest vnode.</p>
+            <div id="ringLegend" class="ring-legend"></div>
+            <div class="ring-stats" id="ringStats"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Tab: LRU Viewer ── -->
+      <div class="tab-content" id="tab-lru">
+        <div class="lru-controls">
+          <label class="lru-node-label">Select Node:</label>
+          <div id="lruNodeBtns" class="lru-node-btns"></div>
+        </div>
+        <div id="lruViewer" class="lru-viewer"></div>
+      </div>
+
+      <div class="tab-content" id="tab-bench">
+        <div class="bench-layout">
+          <div class="bench-config panel">
+            <h2 class="panel-title">⚡ Benchmark Configuration</h2>
+            <div class="bench-field">
+              <label>Operations</label>
+              <input type="number" id="benchOps" class="textinput" value="2000" min="100" max="100000" />
+            </div>
+            <div class="bench-field">
+              <label>Keyspace Size</label>
+              <input type="number" id="benchKeyspace" class="textinput" value="60" min="1" max="10000" />
+            </div>
+            <div class="bench-field">
+              <label>Zipf Skew <span class="hint">(0=uniform, 1=hot-key)</span></label>
+              <input type="range" id="benchSkew" min="0" max="2" step="0.05" value="0.5" class="range-input" />
+              <span id="benchSkewVal" class="range-val">0.50</span>
+            </div>
+            <button class="btn btn-primary w-full mt-8" id="benchBtn">▶ Run Benchmark</button>
+          </div>
+
+          <div class="bench-results panel" id="benchResults">
+            <h2 class="panel-title">📈 Results</h2>
+            <div class="bench-placeholder">Configure and run a benchmark above.</div>
+          </div>
+        </div>
+      </div>
+
+
+
+    </main>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="engine.js"></script>
+  <script src="app.js"></script>
+</body>
+
+</html>
