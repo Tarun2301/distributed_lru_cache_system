@@ -21,14 +21,12 @@ start.bat     - Start script
 ```
 
 ## Build & Run
-
+# For windows
 ```bash
-build.bat    # Compile
-start.bat    # Run server on port 8080
+build.bat    
+start.bat   
 ```
 
-Server starts on **http://localhost:8080** with 3 nodes (node-a, node-b, node-c).
-Access the Web UI dashboard or use REST API endpoints below.
 
 ## Key Concepts
 
