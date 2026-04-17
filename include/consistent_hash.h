@@ -8,20 +8,23 @@
 #include <functional>
 #include <cstdint>
 
-
+// Consistent Hash Ring — FNV-1a hash, virtual nodes, clockwise lookup
 
 struct NodeInfo {
     std::string              name;
     std::string              color;
-    std::unordered_set<std::string> keys; 
+    std::unordered_set<std::string> keys;  
 };
 
 class ConsistentHash {
 public:
     explicit ConsistentHash(int vnodes = 40);
+
     void addNode(const std::string& name, const std::string& color);
 
     void removeNode(const std::string& name);
+
+    void setVNodes(int n);
 
     std::string lookup(const std::string& key) const;
 
@@ -41,6 +44,6 @@ private:
     void     rebalance();
 
     int vnodes_;
-    std::map<uint32_t, std::string>          ring_;   
-    std::unordered_map<std::string, NodeInfo> nodes_;
+    std::map<uint32_t, std::string>          ring_;  
+    std::unordered_map<std::string, NodeInfo> nodes_; 
 };
