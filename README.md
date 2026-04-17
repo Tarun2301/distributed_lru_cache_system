@@ -20,9 +20,9 @@ build.bat     - Build script
 start.bat     - Start script
 ```
 
-## Build & Run
-# For windows
-```bash
+## Build & Run (For windows)
+
+```bash  
 build.bat    
 start.bat   
 ```
