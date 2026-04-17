@@ -1,7 +1,7 @@
 #include "lru_cache.h"
 #include <stdexcept>
 
-// ─── Constructor / Destructor ────────────────────────────────────────────────
+//  Constructor / Destructor 
 
 LRUCache::LRUCache(int capacity)
     : capacity_(capacity), evictions_(0)
@@ -9,12 +9,12 @@ LRUCache::LRUCache(int capacity)
     if (capacity <= 0)
         throw std::invalid_argument("LRUCache capacity must be > 0");
 
-    // Sentinel nodes simplify edge cases: no null checks in insert/remove
+    
     head_ = new LRUNode("__HEAD__", "");
     tail_ = new LRUNode("__TAIL__", "");
     head_->next = tail_;
     tail_->prev = head_;
-} 
+}
 
 LRUCache::~LRUCache() {
     flush();
@@ -22,7 +22,7 @@ LRUCache::~LRUCache() {
     delete tail_;
 }
 
-// ─── Private helpers ─────────────────────────────────────────────────────────
+//  Private helpers 
 
 void LRUCache::removeNode(LRUNode* node) {
     node->prev->next = node->next;
@@ -36,7 +36,7 @@ void LRUCache::insertAfterHead(LRUNode* node) {
     head_->next      = node;
 }
 
-// ─── Public API ──────────────────────────────────────────────────────────────
+//  Public API 
 
 std::string LRUCache::get(const std::string& key) {
     auto it = map_.find(key);
@@ -61,7 +61,7 @@ std::string LRUCache::set(const std::string& key, const std::string& value) {
     } else {
         // New key: evict LRU if at capacity
         if ((int)map_.size() >= capacity_) {
-            LRUNode* lru = tail_->prev;      // node just before tail sentinel
+            LRUNode* lru = tail_->prev;      
             evicted      = lru->key;
             removeNode(lru);
             map_.erase(lru->key);

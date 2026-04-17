@@ -2,10 +2,12 @@
 #include <cmath>
 #include <stdexcept>
 
+//  Constructor / Destructor 
 
 DistCache::DistCache(int capPerNode, int vnodes)
     : capPerNode_(capPerNode), ring_(vnodes) {}
 
+//  Node management 
 
 void DistCache::addNode(const std::string& name, const std::string& color) {
     if (caches_.count(name))
@@ -23,6 +25,7 @@ void DistCache::removeNode(const std::string& name) {
 
 int DistCache::nodeCount() const { return (int)caches_.size(); }
 
+//  Cache operations 
 
 GetResult DistCache::get(const std::string& key) {
     std::string nodeName = ring_.lookup(key);
@@ -40,13 +43,27 @@ GetResult DistCache::get(const std::string& key) {
 }
 
 SetResult DistCache::set(const std::string& key, const std::string& value) {
-    std::string nodeName = ring_.assignKey(key);
-    if (nodeName.empty() || !caches_.count(nodeName))
-        return { "", "" };
+    
+    std::string newNode = ring_.lookup(key);
+    
+    
+    for (auto it = ring_.nodes().begin(); it != ring_.nodes().end(); ++it) {
+        if (it->first != newNode) {
+            const_cast<NodeInfo&>(it->second).keys.erase(key);
+        }
+    }
 
-    std::string evicted = caches_[nodeName]->set(key, value);
-    if (!evicted.empty()) evictions_++;
-    return { nodeName, evicted };
+    auto& cache = *caches_[newNode];
+    std::string evictedKey = cache.set(key, value);
+    
+    ring_.nodeInfo(newNode).keys.insert(key);
+
+    if (!evictedKey.empty()) {
+        evictions_++;
+        ring_.nodeInfo(newNode).keys.erase(evictedKey);
+    }
+    
+    return {newNode, evictedKey};
 }
 
 bool DistCache::del(const std::string& key) {
@@ -57,21 +74,27 @@ bool DistCache::del(const std::string& key) {
 }
 
 void DistCache::flush() {
-    for (auto& [name, cache] : caches_) cache->flush();
-    for (auto& [name, info]  : ring_.nodes())
-        const_cast<NodeInfo&>(info).keys.clear();
+    for (auto it = caches_.begin(); it != caches_.end(); ++it) it->second->flush();
+    const auto& nodes = ring_.nodes();
+    for (auto it = nodes.begin(); it != nodes.end(); ++it)
+        ring_.nodeInfo(it->first).keys.clear();
     hits_ = misses_ = evictions_ = 0;
 }
 
 void DistCache::setCapacity(int cap) {
     capPerNode_ = cap;
-    for (auto& [name, cache] : caches_) cache->resize(cap);
+    for (auto it = caches_.begin(); it != caches_.end(); ++it) it->second->resize(cap);
+}
+
+void DistCache::setVNodes(int v) {
+    ring_.setVNodes(v);
 }
 
 double DistCache::hitRate() const {
     int total = hits_ + misses_;
     return total > 0 ? (double)hits_ / total : 0.0;
 }
+
 
 double DistCache::zipfSample(int n, double s) {
     if (s == 0.0) {
@@ -91,8 +114,10 @@ double DistCache::zipfSample(int n, double s) {
     return n;
 }
 
+//  Benchmark 
 
 BenchmarkResult DistCache::benchmark(int ops, int keyspace, double zipfSkew) {
+    
     flush();
 
     int    bHits = 0, bMisses = 0, bEvict = 0;
@@ -107,6 +132,7 @@ BenchmarkResult DistCache::benchmark(int ops, int keyspace, double zipfSkew) {
         auto lt0 = std::chrono::high_resolution_clock::now();
 
         if (coin(rng_) < 0.65) {
+            
             auto r = get(key);
             if (r.hit) bHits++;
             else { bMisses++; set(key, "val-" + key); }
